@@ -14,10 +14,8 @@ if(isset($_GET['msg'])){
 $search = isset($_GET['q'])?mysqli_real_escape_string($conn,trim($_GET['q'])):'';
 $cat_f  = isset($_GET['cat'])?intval($_GET['cat']):0;
 $sup_f  = isset($_GET['sup'])?intval($_GET['sup']):0;
-$sort   = in_array($_GET['sort']??'','name,quantity,selling_price,created_at')?$_GET['sort']:'created_at';
-// Actually check properly:
-$allowed=['name','quantity','selling_price','created_at'];
-if(!in_array($_GET['sort']??'',$allowed))$sort='created_at';
+$allowed = ['name','quantity','selling_price','created_at'];
+$sort    = in_array($_GET['sort']??'', $allowed) ? $_GET['sort'] : 'created_at';
 $order = strtoupper($_GET['order']??'')==='ASC'?'ASC':'DESC';
 
 $where = "WHERE 1=1";
