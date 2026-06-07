@@ -7,10 +7,11 @@ $database = "inventory_db";
 $conn = mysqli_connect($host, $user, $password, $database);
 
 if (!$conn) {
-    die("<div style='color:red; font-family:sans-serif; padding:20px;'>
-        <h3>Database Connection Failed</h3>
+    die("<div style='color:red; font-family:Arial; padding:20px;'>
+        <h2>Database Connection Failed</h2>
         <p>" . mysqli_connect_error() . "</p>
-        <p>Make sure XAMPP MySQL is running and the database <b>inventory_db</b> exists.</p>
+        <p>Please make sure XAMPP MySQL is running and the database <strong>inventory_db</strong> exists.</p>
+        <p><a href='setup.php'>Click here to run setup</a></p>
     </div>");
 }
 
