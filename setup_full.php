@@ -149,26 +149,23 @@ $tables[] = "CREATE TABLE IF NOT EXISTS activity_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 
+$errors_list = [];
 foreach ($tables as $sql) {
     if (!mysqli_query($conn, $sql)) {
-        echo "<p style='color:red;'>Error: " . mysqli_error($conn) . "</p>";
+        $errors_list[] = mysqli_error($conn);
     }
 }
 
-// Default settings
-mysqli_query($conn, "INSERT IGNORE INTO settings (id, shop_name, currency, currency_symbol, tax_rate) VALUES (1, 'ShopStock', 'USD', '$', 0)");
+// Default settings row
+mysqli_query($conn, "INSERT IGNORE INTO settings (id, shop_name, currency, currency_symbol, tax_rate) VALUES (1,'ShopStock','USD','$',0)");
 
-// Default admin
-$hash = password_hash("admin123", PASSWORD_DEFAULT);
-mysqli_query($conn, "INSERT IGNORE INTO users (full_name, email, username, password, role) VALUES ('System Administrator','admin@shop.com','admin','$hash','admin')");
-
-// Default manager
+// Default users
+$hash1 = password_hash("admin123",   PASSWORD_DEFAULT);
 $hash2 = password_hash("manager123", PASSWORD_DEFAULT);
-mysqli_query($conn, "INSERT IGNORE INTO users (full_name, email, username, password, role) VALUES ('Inventory Manager','manager@shop.com','manager','$hash2','manager')");
-
-// Default cashier
 $hash3 = password_hash("cashier123", PASSWORD_DEFAULT);
-mysqli_query($conn, "INSERT IGNORE INTO users (full_name, email, username, password, role) VALUES ('Sales Cashier','cashier@shop.com','cashier','$hash3','cashier')");
+mysqli_query($conn, "INSERT IGNORE INTO users (full_name,email,username,password,role,status) VALUES ('System Administrator','admin@shop.com','admin','$hash1','admin','active')");
+mysqli_query($conn, "INSERT IGNORE INTO users (full_name,email,username,password,role,status) VALUES ('Inventory Manager','manager@shop.com','manager','$hash2','manager','active')");
+mysqli_query($conn, "INSERT IGNORE INTO users (full_name,email,username,password,role,status) VALUES ('Sales Cashier','cashier@shop.com','cashier','$hash3','cashier','active')");
 
 // Sample categories
 $cats = [
@@ -178,46 +175,75 @@ $cats = [
     ["Stationery","Office and school supplies"],
     ["Household","Home and household items"]
 ];
-foreach ($cats as $c) mysqli_query($conn, "INSERT IGNORE INTO categories (name,description) VALUES ('".mysqli_real_escape_string($conn,$c[0])."','".mysqli_real_escape_string($conn,$c[1])."')");
+foreach ($cats as $c) {
+    $n = mysqli_real_escape_string($conn,$c[0]);
+    $d = mysqli_real_escape_string($conn,$c[1]);
+    mysqli_query($conn,"INSERT IGNORE INTO categories (name,description) VALUES ('$n','$d')");
+}
 
 // Sample suppliers
 $suppliers = [
     ["TechWorld Supplies","John Doe","0911000001","tech@supplier.com","123 Tech Street"],
-    ["FashionHub","Jane Smith","0911000002","fashion@supplier.com","456 Fashion Ave"],
-    ["FoodMart Wholesale","Bob Brown","0911000003","food@supplier.com","789 Market Rd"],
+    ["FashionHub Ltd","Jane Smith","0911000002","fashion@supplier.com","456 Fashion Ave"],
+    ["FoodMart Wholesale","Bob Brown","0911000003","food@supplier.com","789 Market Road"],
 ];
 foreach ($suppliers as $s) {
-    mysqli_query($conn,"INSERT IGNORE INTO suppliers (name,contact_person,phone,email,address) VALUES ('$s[0]','$s[1]','$s[2]','$s[3]','$s[4]')");
+    mysqli_query($conn,"INSERT IGNORE INTO suppliers (name,contact_person,phone,email,address)
+        VALUES ('".mysqli_real_escape_string($conn,$s[0])."','".mysqli_real_escape_string($conn,$s[1])."',
+                '".mysqli_real_escape_string($conn,$s[2])."','".mysqli_real_escape_string($conn,$s[3])."',
+                '".mysqli_real_escape_string($conn,$s[4])."')");
 }
 
 // Sample products
 $products = [
-    ["USB Cable","BC001",1,1,1.50,2.99,50,10,""],
-    ["Headphones","BC002",1,1,8.00,15.99,8,5,""],
-    ["T-Shirt (L)","BC003",2,2,4.00,9.99,3,10,""],
-    ["Notebook A5","BC004",4,3,0.50,1.49,120,20,""],
-    ["Rice 1kg","BC005",3,3,0.80,1.99,4,15,""],
-    ["Pen Pack","BC006",4,3,0.30,0.99,60,25,""],
-    ["Soap Bar","BC007",5,3,0.25,0.79,2,10,""],
-    ["Phone Case","BC008",1,1,1.99,4.99,25,8,""],
+    ["USB Cable","BC001",1,1,1.50,2.99,50,10,"USB Type-A to Type-C cable"],
+    ["Headphones","BC002",1,1,8.00,15.99,8,5,"Stereo over-ear headphones"],
+    ["T-Shirt (L)","BC003",2,2,4.00,9.99,3,10,"Cotton T-shirt large size"],
+    ["Notebook A5","BC004",4,3,0.50,1.49,120,20,"A5 lined notebook"],
+    ["Rice 1kg","BC005",3,3,0.80,1.99,4,15,"White long grain rice"],
+    ["Pen Pack","BC006",4,3,0.30,0.99,60,25,"Pack of 10 ballpoint pens"],
+    ["Soap Bar","BC007",5,3,0.25,0.79,2,10,"Antibacterial soap bar"],
+    ["Phone Case","BC008",1,1,1.99,4.99,25,8,"Universal phone protective case"],
+    ["Water Bottle","BC009",5,3,1.50,3.49,15,5,"1L reusable water bottle"],
+    ["LED Bulb","BC010",1,1,1.00,2.49,40,12,"9W LED energy saving bulb"],
 ];
 foreach ($products as $p) {
-    $name=$p[0];$bc=$p[1];$cat=$p[2];$sup=$p[3];$pp=$p[4];$sp=$p[5];$qty=$p[6];$rl=$p[7];
-    mysqli_query($conn,"INSERT IGNORE INTO products (name,barcode,category_id,supplier_id,purchase_price,selling_price,quantity,reorder_level) VALUES ('$name','$bc',$cat,$sup,$pp,$sp,$qty,$rl)");
+    $n=mysqli_real_escape_string($conn,$p[0]);
+    $d=mysqli_real_escape_string($conn,$p[8]);
+    $existing = mysqli_query($conn,"SELECT id FROM products WHERE barcode='$p[1]'");
+    if (mysqli_num_rows($existing)==0) {
+        mysqli_query($conn,"INSERT INTO products (name,barcode,category_id,supplier_id,purchase_price,selling_price,quantity,reorder_level,description)
+            VALUES ('$n','$p[1]',$p[2],$p[3],$p[4],$p[5],$p[6],$p[7],'$d')");
+    }
 }
 
-// Sample sales
-for ($i = 1; $i <= 20; $i++) {
-    $inv = "INV-" . str_pad($i, 5, "0", STR_PAD_LEFT);
-    $total = rand(5, 150) + 0.99;
-    $days_ago = rand(0, 30);
+// Sample sales (last 30 days)
+$cashier_id = mysqli_fetch_assoc(mysqli_query($conn,"SELECT id FROM users WHERE role='cashier' LIMIT 1"))['id'] ?? 3;
+for ($i = 1; $i <= 25; $i++) {
+    $inv = "INV-" . str_pad($i, 5,"0",STR_PAD_LEFT);
+    $existing = mysqli_query($conn,"SELECT id FROM sales WHERE invoice_number='$inv'");
+    if (mysqli_num_rows($existing) > 0) continue;
+    $days_ago = rand(0, 29);
     $date = date('Y-m-d H:i:s', strtotime("-$days_ago days"));
     $methods = ['cash','card','mobile'];
-    $method = $methods[array_rand($methods)];
-    mysqli_query($conn,"INSERT IGNORE INTO sales (invoice_number,user_id,subtotal,total,payment_method,amount_paid,created_at) VALUES ('$inv',3,$total,$total,'$method',$total,'$date')");
+    $method  = $methods[array_rand($methods)];
+    $subtotal= round(rand(3,80) + 0.99, 2);
+    mysqli_query($conn,"INSERT INTO sales (invoice_number,user_id,subtotal,total,payment_method,amount_paid,created_at)
+        VALUES ('$inv',$cashier_id,$subtotal,$subtotal,'$method',$subtotal,'$date')");
     $sale_id = mysqli_insert_id($conn);
     if ($sale_id) {
-        mysqli_query($conn,"INSERT INTO sale_items (sale_id,product_id,product_name,quantity,unit_price,total_price) VALUES ($sale_id,1,'USB Cable',".rand(1,5).",2.99,".(rand(1,5)*2.99).")");
+        $qty2 = rand(1,4);
+        mysqli_query($conn,"INSERT INTO sale_items (sale_id,product_id,product_name,quantity,unit_price,total_price)
+            VALUES ($sale_id,1,'USB Cable',$qty2,2.99,".round($qty2*2.99,2).")");
+    }
+}
+
+// Initial stock transactions
+$prods_with_stock = mysqli_query($conn,"SELECT id,quantity FROM products WHERE quantity>0");
+while ($pr = mysqli_fetch_assoc($prods_with_stock)) {
+    $chk = mysqli_query($conn,"SELECT id FROM stock_transactions WHERE product_id={$pr['id']} AND type='in' LIMIT 1");
+    if (mysqli_num_rows($chk)==0) {
+        mysqli_query($conn,"INSERT INTO stock_transactions (product_id,type,quantity,reason,user_id) VALUES ({$pr['id']},'in',{$pr['quantity']},'Initial stock',1)");
     }
 }
 
@@ -225,27 +251,63 @@ mysqli_close($conn);
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Full Setup</title>
+<head>
+<meta charset="UTF-8">
+<title>Full System Setup | ShopStock</title>
 <style>
-body{font-family:Arial,sans-serif;background:#f0f4f8;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;}
-.box{background:#fff;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;max-width:480px;}
-h2{color:#27ae60;} table{width:100%;border-collapse:collapse;margin:20px 0;text-align:left;}
-th,td{padding:9px 14px;border:1px solid #eee;font-size:13px;} th{background:#f8f9fa;font-weight:600;}
-a{display:inline-block;margin-top:14px;padding:12px 30px;background:#e94560;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;}
-a:hover{background:#c0392b;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1a1a2e,#0f3460);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.box{background:#fff;padding:40px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:520px;width:100%;}
+h2{color:#27ae60;font-size:22px;margin-bottom:6px;}
+.sub{color:#888;font-size:13px;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;margin:16px 0;}
+th,td{padding:10px 14px;border:1px solid #eee;font-size:13px;text-align:left;}
+th{background:#f8f9fa;font-weight:700;color:#555;}
+.role-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.admin{background:#fdecea;color:#e94560;}
+.manager{background:#e8f0fe;color:#3498db;}
+.cashier{background:#e6f9f0;color:#27ae60;}
+.btn{display:inline-block;margin-top:6px;padding:12px 28px;background:#e94560;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700;}
+.btn:hover{background:#c0392b;}
+.btn-2{background:#3498db;margin-left:8px;}
+.btn-2:hover{background:#2980b9;}
+<?php if(!empty($errors_list)):?>
+.err{background:#fdecea;border-left:4px solid #e74c3c;padding:10px 14px;border-radius:8px;font-size:12px;color:#e74c3c;margin-bottom:14px;}
+<?php endif;?>
 </style>
 </head>
 <body>
 <div class="box">
-    <h2>✅ Full System Setup Complete!</h2>
-    <p>All tables, roles and sample data created.</p>
-    <table>
-        <tr><th>Role</th><th>Email</th><th>Password</th></tr>
-        <tr><td>🔑 Admin</td><td>admin@shop.com</td><td>admin123</td></tr>
-        <tr><td>📦 Manager</td><td>manager@shop.com</td><td>manager123</td></tr>
-        <tr><td>🛒 Cashier</td><td>cashier@shop.com</td><td>cashier123</td></tr>
-    </table>
-    <a href="login.php">Go to Login →</a>
+  <h2>✅ Full System Setup Complete!</h2>
+  <p class="sub">All tables, users, and sample data have been created in <strong>inventory_db</strong></p>
+
+  <?php if (!empty($errors_list)): ?>
+  <div class="err">⚠️ Some errors: <?= implode(', ', $errors_list) ?></div>
+  <?php endif; ?>
+
+  <table>
+    <tr><th>Role</th><th>Email / Username</th><th>Password</th></tr>
+    <tr>
+      <td><span class="role-badge admin">🔑 Admin</span></td>
+      <td>admin@shop.com &nbsp;|&nbsp; <strong>admin</strong></td>
+      <td><code>admin123</code></td>
+    </tr>
+    <tr>
+      <td><span class="role-badge manager">📦 Manager</span></td>
+      <td>manager@shop.com &nbsp;|&nbsp; <strong>manager</strong></td>
+      <td><code>manager123</code></td>
+    </tr>
+    <tr>
+      <td><span class="role-badge cashier">🛒 Cashier</span></td>
+      <td>cashier@shop.com &nbsp;|&nbsp; <strong>cashier</strong></td>
+      <td><code>cashier123</code></td>
+    </tr>
+  </table>
+
+  <div>
+    <a href="login.php" class="btn">🔐 Go to Login</a>
+    <a href="register.php" class="btn btn-2">📝 Register</a>
+  </div>
 </div>
 </body>
 </html>

@@ -22,6 +22,8 @@ $cur=basename($_SERVER['PHP_SELF']);
     <div class="nav-label">Point of Sale</div>
     <a href="pos.php" class="<?=$cur=='pos.php'?'active':''?>"><span class="nav-icon">🛒</span><span class="nav-text">New Sale (POS)</span></a>
     <a href="sales_history.php" class="<?=$cur=='sales_history.php'?'active':''?>"><span class="nav-icon">📜</span><span class="nav-text">Sales History</span></a>
+    <div class="nav-label">Alerts</div>
+    <a href="notifications.php" class="<?=$cur=='notifications.php'?'active':''?>"><span class="nav-icon">🔔</span><span class="nav-text">Notifications</span></a>
   </nav>
   <div class="sidebar-footer">
     <a href="../logout.php"><span class="nav-icon">🚪</span><span class="nav-text">Logout</span></a>

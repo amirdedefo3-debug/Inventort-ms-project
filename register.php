@@ -1,397 +1,172 @@
 <?php
 session_start();
-
-// Already logged in
 if (isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    $r = $_SESSION['user_role'] ?? 'cashier';
+    header("Location: " . ($r=='admin'?'admin/dashboard.php':($r=='manager'?'manager/dashboard.php':'cashier/dashboard.php')));
     exit;
 }
-
 require_once 'db.php';
-
-$errors  = [];
-$success = '';
+$errors = []; $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name     = trim($_POST['name'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $confirm  = $_POST['confirm_password'] ?? '';
-    $role     = $_POST['role'] ?? 'staff';
+    $full_name = trim($_POST['full_name'] ?? '');
+    $email     = trim($_POST['email'] ?? '');
+    $username  = trim($_POST['username'] ?? '');
+    $phone     = trim($_POST['phone'] ?? '');
+    $password  = $_POST['password'] ?? '';
+    $confirm   = $_POST['confirm_password'] ?? '';
+    $role      = in_array($_POST['role']??'cashier', ['admin','manager','cashier']) ? $_POST['role'] : 'cashier';
 
-    // Validation
-    if (empty($name))               $errors[] = "Full name is required.";
-    if (strlen($name) > 100)        $errors[] = "Name must be under 100 characters.";
-    if (empty($email))              $errors[] = "Email address is required.";
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Please enter a valid email.";
-    if (empty($password))           $errors[] = "Password is required.";
-    if (strlen($password) < 6)      $errors[] = "Password must be at least 6 characters.";
-    if ($password !== $confirm)     $errors[] = "Passwords do not match.";
-    if (!in_array($role, ['admin','staff'])) $role = 'staff';
+    if (!$full_name)               $errors[] = "Full name is required.";
+    if (!$email)                   $errors[] = "Email is required.";
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email address.";
+    if (!$password)                $errors[] = "Password is required.";
+    if (strlen($password) < 6)    $errors[] = "Password must be at least 6 characters.";
+    if ($password !== $confirm)    $errors[] = "Passwords do not match.";
 
-    // Check duplicate email
     if (empty($errors)) {
-        $email_esc = mysqli_real_escape_string($conn, $email);
-        $check = mysqli_query($conn, "SELECT id FROM users WHERE email = '$email_esc'");
-        if (mysqli_num_rows($check) > 0) {
-            $errors[] = "An account with this email already exists.";
-        }
+        $em = mysqli_real_escape_string($conn, $email);
+        $chk = mysqli_query($conn, "SELECT id FROM users WHERE email='$em'");
+        if (mysqli_num_rows($chk) > 0) $errors[] = "Email already registered.";
+    }
+    if ($username) {
+        $un = mysqli_real_escape_string($conn, $username);
+        $chk2 = mysqli_query($conn, "SELECT id FROM users WHERE username='$un'");
+        if (mysqli_num_rows($chk2) > 0) $errors[] = "Username already taken.";
     }
 
     if (empty($errors)) {
-        $name_esc = mysqli_real_escape_string($conn, $name);
+        $fn  = mysqli_real_escape_string($conn, $full_name);
+        $em  = mysqli_real_escape_string($conn, $email);
+        $un  = mysqli_real_escape_string($conn, $username);
+        $ph  = mysqli_real_escape_string($conn, $phone);
         $hash = password_hash($password, PASSWORD_DEFAULT);
-
-        $sql = "INSERT INTO users (name, email, password, role)
-                VALUES ('$name_esc', '$email_esc', '$hash', '$role')";
-
-        if (mysqli_query($conn, $sql)) {
-            $success = true;
-        } else {
-            $errors[] = "Registration failed. Please try again.";
-        }
+        mysqli_query($conn, "INSERT INTO users (full_name,email,phone,username,password,role) VALUES ('$fn','$em','$ph','$un','$hash','$role')");
+        $success = true;
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | ShopStock</title>
-    <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .reg-container {
-            width: 100%;
-            max-width: 460px;
-        }
-
-        .reg-logo {
-            text-align: center;
-            margin-bottom: 28px;
-        }
-
-        .reg-logo .icon { font-size: 46px; }
-        .reg-logo h1 { color:#fff; font-size:26px; font-weight:700; margin-top:6px; }
-        .reg-logo p  { color:rgba(255,255,255,0.5); font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
-
-        .reg-card {
-            background: #fff;
-            border-radius: 16px;
-            padding: 36px;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.3);
-        }
-
-        .reg-card h2 { font-size:20px; color:#1a1a2e; margin-bottom:4px; }
-        .reg-card .subtitle { color:#aaa; font-size:13px; margin-bottom:26px; }
-
-        .form-group { margin-bottom:18px; }
-
-        .form-group label {
-            display:block;
-            font-size:12px;
-            font-weight:700;
-            color:#555;
-            text-transform:uppercase;
-            letter-spacing:0.5px;
-            margin-bottom:6px;
-        }
-
-        .input-wrap { position:relative; }
-        .input-wrap .icon-left {
-            position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:16px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width:100%;
-            padding:11px 14px 11px 40px;
-            border:2px solid #e8e8e8;
-            border-radius:8px;
-            font-size:14px;
-            color:#333;
-            transition:border-color 0.2s;
-            background:#fafafa;
-            font-family:inherit;
-        }
-
-        .form-group select { padding-left: 40px; }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline:none; border-color:#e94560; background:#fff;
-        }
-
-        .form-group input.error { border-color:#e74c3c; }
-
-        .toggle-pass {
-            position:absolute; right:13px; top:50%; transform:translateY(-50%);
-            cursor:pointer; font-size:16px; user-select:none;
-        }
-
-        .role-selector {
-            display:grid;
-            grid-template-columns: 1fr 1fr;
-            gap:12px;
-            margin-top:6px;
-        }
-
-        .role-option {
-            border: 2px solid #e8e8e8;
-            border-radius: 10px;
-            padding: 14px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .role-option input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-            width: 0; height: 0;
-        }
-
-        .role-option .role-icon { font-size: 28px; display:block; margin-bottom:6px; }
-        .role-option .role-name { font-size: 14px; font-weight: 700; color:#333; }
-        .role-option .role-desc { font-size: 11px; color:#aaa; margin-top:3px; }
-
-        .role-option.selected {
-            border-color: #e94560;
-            background: #fff5f6;
-        }
-
-        .role-option.selected .role-name { color:#e94560; }
-
-        .alert-list {
-            background:#fdecea;
-            color:#e74c3c;
-            border-left:4px solid #e74c3c;
-            padding:12px 16px;
-            border-radius:8px;
-            font-size:13px;
-            margin-bottom:20px;
-        }
-
-        .alert-list ul { margin-top:6px; padding-left:18px; }
-
-        .alert-success {
-            background:#e6f9f0;
-            color:#27ae60;
-            border-left:4px solid #27ae60;
-            padding:16px;
-            border-radius:8px;
-            font-size:14px;
-            text-align:center;
-        }
-
-        .alert-success a {
-            display:inline-block;
-            margin-top:12px;
-            padding:10px 28px;
-            background:#27ae60;
-            color:#fff;
-            border-radius:8px;
-            text-decoration:none;
-            font-weight:600;
-        }
-
-        .btn-register {
-            width:100%;
-            padding:13px;
-            background:linear-gradient(135deg,#e94560,#c0392b);
-            color:#fff;
-            border:none;
-            border-radius:8px;
-            font-size:15px;
-            font-weight:700;
-            cursor:pointer;
-            transition:opacity 0.2s, transform 0.1s;
-            font-family:inherit;
-            letter-spacing:0.5px;
-        }
-
-        .btn-register:hover { opacity:0.92; }
-        .btn-register:active { transform:scale(0.98); }
-
-        .login-link { text-align:center; font-size:14px; color:#666; margin-top:18px; }
-        .login-link a { color:#e94560; font-weight:600; text-decoration:none; }
-        .login-link a:hover { text-decoration:underline; }
-
-        .strength-bar {
-            height:4px; border-radius:4px;
-            background:#eee; margin-top:6px; overflow:hidden;
-        }
-        .strength-fill { height:100%; border-radius:4px; transition:width 0.3s, background 0.3s; width:0%; }
-        .strength-label { font-size:11px; color:#aaa; margin-top:3px; }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Register | ShopStock</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.wrap{width:100%;max-width:480px;}
+.logo{text-align:center;margin-bottom:24px;}
+.logo .icon{font-size:46px;} .logo h1{color:#fff;font-size:24px;font-weight:700;margin-top:6px;}
+.logo p{color:rgba(255,255,255,.4);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+.card{background:#fff;border-radius:16px;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,.3);}
+.card h2{font-size:19px;color:#1a1a2e;margin-bottom:4px;} .sub{color:#aaa;font-size:13px;margin-bottom:22px;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.fg input,.fg select{width:100%;padding:10px 14px;border:2px solid #e8e8e8;border-radius:8px;font-size:13px;color:#333;background:#fafafa;font-family:inherit;transition:border-color .2s;}
+.fg input:focus,.fg select:focus{outline:none;border-color:#e94560;background:#fff;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.roles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;}
+.role-opt{border:2px solid #e8e8e8;border-radius:10px;padding:12px 8px;cursor:pointer;text-align:center;transition:all .2s;position:relative;}
+.role-opt input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
+.role-opt .ri{font-size:24px;display:block;margin-bottom:4px;} .role-opt .rn{font-size:12px;font-weight:700;color:#333;} .role-opt .rd{font-size:10px;color:#aaa;margin-top:2px;}
+.role-opt.sel{border-color:#e94560;background:#fff5f6;} .role-opt.sel .rn{color:#e94560;}
+.err-box{background:#fdecea;color:#e74c3c;border-left:4px solid #e74c3c;padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+.err-box ul{margin-top:6px;padding-left:18px;}
+.ok-box{background:#e6f9f0;color:#27ae60;border-left:4px solid #27ae60;padding:16px;border-radius:8px;text-align:center;font-size:14px;}
+.ok-box a{display:inline-block;margin-top:12px;padding:10px 26px;background:#27ae60;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;}
+.btn{width:100%;padding:12px;background:linear-gradient(135deg,#e94560,#c0392b);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px;}
+.btn:hover{opacity:.92;}
+.strength-bar{height:4px;background:#eee;border-radius:4px;margin-top:5px;overflow:hidden;}
+.strength-fill{height:100%;border-radius:4px;transition:width .3s,background .3s;width:0;}
+.match-msg{font-size:11px;margin-top:3px;}
+.login-lnk{text-align:center;font-size:13px;color:#666;margin-top:14px;}
+.login-lnk a{color:#e94560;font-weight:700;text-decoration:none;}
+</style>
 </head>
 <body>
+<div class="wrap">
+  <div class="logo"><div class="icon">🏪</div><h1>ShopStock</h1><p>Inventory Manager</p></div>
+  <div class="card">
+    <h2>Create Account ✨</h2>
+    <p class="sub">Fill in the form to register a new account</p>
 
-<div class="reg-container">
-    <div class="reg-logo">
-        <div class="icon">🏪</div>
-        <h1>ShopStock</h1>
-        <p>Inventory Manager</p>
+    <?php if ($success): ?>
+    <div class="ok-box">
+      <div style="font-size:30px">✅</div>
+      <strong>Account created successfully!</strong>
+      <br><a href="login.php">Sign In Now →</a>
     </div>
+    <?php else: ?>
 
-    <div class="reg-card">
-        <h2>Create Account ✨</h2>
-        <p class="subtitle">Fill in the details below to register</p>
+    <?php if (!empty($errors)): ?>
+    <div class="err-box"><strong>⚠️ Please fix:</strong><ul><?php foreach($errors as $e): ?><li><?=htmlspecialchars($e)?></li><?php endforeach; ?></ul></div>
+    <?php endif; ?>
 
-        <?php if (!empty($errors)): ?>
-        <div class="alert-list">
-            <strong>⚠️ Please fix the following:</strong>
-            <ul>
-                <?php foreach ($errors as $e): ?>
-                <li><?= htmlspecialchars($e) ?></li>
-                <?php endforeach; ?>
-            </ul>
+    <form method="POST" id="regForm">
+      <div class="row2">
+        <div class="fg"><label>Full Name *</label><input type="text" name="full_name" placeholder="Your full name" value="<?=htmlspecialchars($_POST['full_name']??'')?>" required></div>
+        <div class="fg"><label>Email *</label><input type="email" name="email" placeholder="email@example.com" value="<?=htmlspecialchars($_POST['email']??'')?>" required></div>
+      </div>
+      <div class="row2">
+        <div class="fg"><label>Username</label><input type="text" name="username" placeholder="Optional username" value="<?=htmlspecialchars($_POST['username']??'')?>"></div>
+        <div class="fg"><label>Phone</label><input type="text" name="phone" placeholder="Phone number" value="<?=htmlspecialchars($_POST['phone']??'')?>"></div>
+      </div>
+      <div class="row2">
+        <div class="fg">
+          <label>Password *</label>
+          <input type="password" name="password" id="pwd" placeholder="Min 6 characters" required>
+          <div class="strength-bar"><div class="strength-fill" id="sf"></div></div>
         </div>
-        <?php endif; ?>
-
-        <?php if (isset($success) && $success): ?>
-        <div class="alert-success">
-            <div style="font-size:32px;">✅</div>
-            <strong>Account created successfully!</strong>
-            <p style="color:#555; font-size:13px; margin-top:6px;">You can now log in with your credentials.</p>
-            <a href="login.php">Go to Login →</a>
+        <div class="fg">
+          <label>Confirm Password *</label>
+          <input type="password" name="confirm_password" id="cpwd" placeholder="Repeat password" required>
+          <div class="match-msg" id="mm"></div>
         </div>
-        <?php else: ?>
+      </div>
 
-        <form method="POST" id="regForm">
-            <div class="form-group">
-                <label>Full Name *</label>
-                <div class="input-wrap">
-                    <span class="icon-left">👤</span>
-                    <input type="text" name="name" id="name" placeholder="Your full name"
-                           value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" maxlength="100" required>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Email Address *</label>
-                <div class="input-wrap">
-                    <span class="icon-left">📧</span>
-                    <input type="email" name="email" id="reg_email" placeholder="you@example.com"
-                           value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Password *</label>
-                <div class="input-wrap">
-                    <span class="icon-left">🔒</span>
-                    <input type="password" name="password" id="reg_password" placeholder="Min. 6 characters" required>
-                    <span class="toggle-pass" onclick="togglePass('reg_password','t1')" id="t1">👁️</span>
-                </div>
-                <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
-                <div class="strength-label" id="strengthLabel"></div>
-            </div>
-
-            <div class="form-group">
-                <label>Confirm Password *</label>
-                <div class="input-wrap">
-                    <span class="icon-left">🔒</span>
-                    <input type="password" name="confirm_password" id="confirm_password" placeholder="Repeat password" required>
-                    <span class="toggle-pass" onclick="togglePass('confirm_password','t2')" id="t2">👁️</span>
-                </div>
-                <small id="matchMsg" style="font-size:12px;"></small>
-            </div>
-
-            <div class="form-group">
-                <label>Account Role *</label>
-                <div class="role-selector">
-                    <label class="role-option <?= (($_POST['role'] ?? 'staff') == 'admin') ? 'selected' : '' ?>" id="roleAdmin">
-                        <input type="radio" name="role" value="admin" <?= (($_POST['role'] ?? '') == 'admin') ? 'checked' : '' ?> onchange="selectRole('admin')">
-                        <span class="role-icon">🔑</span>
-                        <div class="role-name">Admin</div>
-                        <div class="role-desc">Full access</div>
-                    </label>
-                    <label class="role-option <?= (($_POST['role'] ?? 'staff') == 'staff' || !isset($_POST['role'])) ? 'selected' : '' ?>" id="roleStaff">
-                        <input type="radio" name="role" value="staff" <?= (($_POST['role'] ?? 'staff') == 'staff') ? 'checked' : '' ?> onchange="selectRole('staff')">
-                        <span class="role-icon">👤</span>
-                        <div class="role-name">Staff</div>
-                        <div class="role-desc">View only</div>
-                    </label>
-                </div>
-            </div>
-
-            <button type="submit" class="btn-register">🚀 Create Account</button>
-        </form>
-
-        <div class="login-link">
-            Already have an account? <a href="login.php">Sign in</a>
+      <div class="fg">
+        <label>Account Role *</label>
+        <div class="roles">
+          <label class="role-opt <?=(($_POST['role']??'cashier')==='admin')?'sel':''?>" id="r_admin" onclick="pickRole('admin',this)">
+            <input type="radio" name="role" value="admin" <?=(($_POST['role']??'')==='admin')?'checked':''?>>
+            <span class="ri">🔑</span><div class="rn">Admin</div><div class="rd">Full access</div>
+          </label>
+          <label class="role-opt <?=(($_POST['role']??'cashier')==='manager')?'sel':''?>" id="r_manager" onclick="pickRole('manager',this)">
+            <input type="radio" name="role" value="manager" <?=(($_POST['role']??'')==='manager')?'checked':''?>>
+            <span class="ri">📦</span><div class="rn">Manager</div><div class="rd">Inventory</div>
+          </label>
+          <label class="role-opt <?=(($_POST['role']??'cashier')==='cashier'||!isset($_POST['role']))?'sel':''?>" id="r_cashier" onclick="pickRole('cashier',this)">
+            <input type="radio" name="role" value="cashier" <?=(($_POST['role']??'cashier')==='cashier')?'checked':''?>>
+            <span class="ri">🛒</span><div class="rn">Cashier</div><div class="rd">Sales</div>
+          </label>
         </div>
+      </div>
 
-        <?php endif; ?>
-    </div>
+      <button type="submit" class="btn">🚀 Create Account</button>
+    </form>
+    <?php endif; ?>
+    <div class="login-lnk">Already have an account? <a href="login.php">Sign In</a></div>
+  </div>
 </div>
-
 <script>
-function togglePass(id, iconId) {
-    const f = document.getElementById(id);
-    const i = document.getElementById(iconId);
-    f.type = f.type === 'password' ? 'text' : 'password';
-    i.textContent = f.type === 'password' ? '👁️' : '🙈';
+function pickRole(v, el) {
+    ['r_admin','r_manager','r_cashier'].forEach(id => document.getElementById(id).classList.remove('sel'));
+    el.classList.add('sel');
+    el.querySelector('input').checked = true;
 }
-
-function selectRole(role) {
-    document.getElementById('roleAdmin').classList.toggle('selected', role === 'admin');
-    document.getElementById('roleStaff').classList.toggle('selected', role === 'staff');
-}
-
-// Password strength
-document.getElementById('reg_password').addEventListener('input', function() {
-    const val = this.value;
-    const fill = document.getElementById('strengthFill');
-    const label = document.getElementById('strengthLabel');
-    let strength = 0;
-    if (val.length >= 6)  strength++;
-    if (val.length >= 10) strength++;
-    if (/[A-Z]/.test(val)) strength++;
-    if (/[0-9]/.test(val)) strength++;
-    if (/[^A-Za-z0-9]/.test(val)) strength++;
-
-    const levels = [
-        { w: '0%',   bg: '#eee',     text: '' },
-        { w: '25%',  bg: '#e74c3c',  text: 'Weak' },
-        { w: '50%',  bg: '#e67e22',  text: 'Fair' },
-        { w: '75%',  bg: '#f1c40f',  text: 'Good' },
-        { w: '100%', bg: '#27ae60',  text: 'Strong' },
-    ];
-    const lvl = levels[Math.min(strength, 4)];
-    fill.style.width = lvl.w;
-    fill.style.background = lvl.bg;
-    label.textContent = lvl.text;
-    label.style.color = lvl.bg;
+document.getElementById('pwd').addEventListener('input', function() {
+    var v=this.value,s=0;
+    if(v.length>=6)s++;if(v.length>=10)s++;if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
+    var lvl=[{w:'0%',bg:'#eee'},{w:'25%',bg:'#e74c3c'},{w:'50%',bg:'#e67e22'},{w:'75%',bg:'#f1c40f'},{w:'100%',bg:'#27ae60'}];
+    var l=lvl[Math.min(s,4)];
+    var f=document.getElementById('sf');f.style.width=l.w;f.style.background=l.bg;
 });
-
-// Password match check
-document.getElementById('confirm_password').addEventListener('input', function() {
-    const pass = document.getElementById('reg_password').value;
-    const msg  = document.getElementById('matchMsg');
-    if (this.value === '') { msg.textContent = ''; return; }
-    if (this.value === pass) {
-        msg.textContent = '✅ Passwords match';
-        msg.style.color = '#27ae60';
-    } else {
-        msg.textContent = '❌ Passwords do not match';
-        msg.style.color = '#e74c3c';
-    }
+document.getElementById('cpwd').addEventListener('input', function() {
+    var mm=document.getElementById('mm');
+    if(!this.value){mm.textContent='';return;}
+    if(this.value===document.getElementById('pwd').value){mm.textContent='✅ Passwords match';mm.style.color='#27ae60';}
+    else{mm.textContent='❌ Passwords do not match';mm.style.color='#e74c3c';}
 });
 </script>
-
 </body>
 </html>

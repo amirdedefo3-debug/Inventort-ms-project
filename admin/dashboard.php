@@ -2,6 +2,8 @@
 require_once '../includes/auth.php';
 require_admin();
 require_once '../db.php';
+// Auto-check stock alerts
+require_once '../check_stock_alerts.php';
 $page_title = '📊 Admin Dashboard';
 $s = get_settings($conn);
 

@@ -31,6 +31,7 @@ $cur=basename($_SERVER['PHP_SELF']);
     <a href="users.php" class="<?=$cur=='users.php'?'active':''?>"><span class="nav-icon">👥</span><span class="nav-text">Users</span></a>
     <a href="activity_logs.php" class="<?=$cur=='activity_logs.php'?'active':''?>"><span class="nav-icon">📋</span><span class="nav-text">Activity Logs</span></a>
     <a href="settings.php" class="<?=$cur=='settings.php'?'active':''?>"><span class="nav-icon">⚙️</span><span class="nav-text">Settings</span></a>
+    <a href="notifications.php" class="<?=$cur=='notifications.php'?'active':''?>"><span class="nav-icon">🔔</span><span class="nav-text">Notifications</span></a>
   </nav>
   <div class="sidebar-footer">
     <a href="../logout.php"><span class="nav-icon">🚪</span><span class="nav-text">Logout</span></a>

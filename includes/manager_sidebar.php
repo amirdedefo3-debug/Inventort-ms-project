@@ -30,6 +30,8 @@ $cur=basename($_SERVER['PHP_SELF']);
     <div class="nav-label">Suppliers & Orders</div>
     <a href="suppliers.php" class="<?=$cur=='suppliers.php'?'active':''?>"><span class="nav-icon">🚚</span><span class="nav-text">Suppliers</span></a>
     <a href="purchase_orders.php" class="<?=$cur=='purchase_orders.php'?'active':''?>"><span class="nav-icon">🧾</span><span class="nav-text">Purchase Orders</span></a>
+    <div class="nav-label">Alerts</div>
+    <a href="notifications.php" class="<?=$cur=='notifications.php'?'active':''?>"><span class="nav-icon">🔔</span><span class="nav-text">Notifications</span></a>
   </nav>
   <div class="sidebar-footer">
     <a href="../logout.php"><span class="nav-icon">🚪</span><span class="nav-text">Logout</span></a>
