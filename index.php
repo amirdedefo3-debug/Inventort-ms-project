@@ -1,4 +1,5 @@
 <?php
+require_once 'includes/auth.php';
 require_once 'db.php';
 
 // Total products
@@ -37,9 +38,15 @@ $low_items = mysqli_query($conn, "SELECT p.*, c.name as cat_name FROM products p
         <h1>📊 <span>Dashboard</span></h1>
         <div class="topbar-right">
             <span class="badge-date">📅 <?= date('D, d M Y') ?></span>
+            <?php if (is_admin()): ?>
             <a href="add_product.php" class="btn btn-primary">➕ Add Product</a>
+            <?php endif; ?>
         </div>
     </div>
+
+    <?php if (isset($_GET['error']) && $_GET['error'] == 'access_denied'): ?>
+    <div class="access-denied-bar">🚫 Access denied. You do not have permission to view that page.</div>
+    <?php endif; ?>
 
     <!-- Stat Cards -->
     <div class="stats-grid">

@@ -1,4 +1,5 @@
 <?php
+require_once 'includes/auth.php';
 require_once 'db.php';
 
 // Handle search & filter
@@ -58,7 +59,9 @@ if (isset($_GET['msg'])) {
     <div class="topbar">
         <h1>📦 <span>Products</span></h1>
         <div class="topbar-right">
+            <?php if (is_admin()): ?>
             <a href="add_product.php" class="btn btn-primary">➕ Add Product</a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -168,8 +171,12 @@ if (isset($_GET['msg'])) {
                         </td>
                         <td>
                             <div style="display:flex; gap:6px;">
+                                <?php if (is_admin()): ?>
                                 <a href="edit_product.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-warning" title="Edit">✏️</a>
                                 <button onclick="confirmDelete(<?= $row['id'] ?>, '<?= htmlspecialchars(addslashes($row['name'])) ?>')" class="btn btn-sm btn-danger" title="Delete">🗑️</button>
+                                <?php else: ?>
+                                <span style="color:#ccc; font-size:12px;">View only</span>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

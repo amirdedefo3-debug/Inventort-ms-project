@@ -1,4 +1,5 @@
 <?php
+require_once 'includes/auth.php';
 require_once 'db.php';
 
 // Fetch all low stock / out of stock items

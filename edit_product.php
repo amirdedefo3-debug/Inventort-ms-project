@@ -1,4 +1,6 @@
 <?php
+require_once 'includes/auth.php';
+require_admin(); // Admin only
 require_once 'db.php';
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
